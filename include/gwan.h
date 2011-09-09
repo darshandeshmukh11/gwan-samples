@@ -5,6 +5,9 @@
 //         (this file should be located in the gwan/include folder, along
 //         with the other include files listed below)
 // ============================================================================
+#ifndef _GWAN_H
+#define _GWAN_H
+
 #include "short_types.h" // u8/s8, u16/s16, u32/int, u64/s64
 #include "xbuffer.h"     // xbuf_xcat(), etc.
 #include "float.h"       // limits, conversions
@@ -211,7 +214,8 @@ typedef struct
             h_maj_ver           : 1, // 0-1
             h_min_ver           : 4, // 0-15
             h_ver               :10, // 0-1023
-            h_method            : 5; // 0-32 (0-27 to cover the HTTP standard)
+            h_method            : 5, // 0-32 (0-27 to cover the HTTP standard)
+            h_do_not_track      : 1; // 0-1 (optional W3C "DNT:" header)
 } http_t;
 
 enum HTTP_Env
@@ -351,6 +355,7 @@ void server_report(xbuf_t *reply, int html); // see the report.c sample
 // item.key = strdup("Paula");
 // item.val = strdup("Accounting");
 // item.klen = sizeof("Paula");
+// item.flags = 0;
 //
 // kv_t store;
 // kv_new(&store, 4 * 1024, argv); // using 4 KB "maximum" 
@@ -369,7 +374,8 @@ enum KV_OPTIONS
    KV_GC_ALLOC = 1,    // garbage collection, default behavior
    KV_PERSISTANCE = 2, // periodic file I/O (using kv_recfn() call-back)
    KV_INCR_KEY = 4,    // 1st field:primary key (automatically incremented)
-   KV_CUR_TIME = 8     // 2nd field:time stamp  (automatically setup/updated)
+   KV_CUR_TIME = 8,    // 2nd field:time stamp  (automatically generated)
+   KV_NO_UPDATE = 16   // make kv_add() fail to update an existing entry
 };
 
 // a key-value store
@@ -387,7 +393,7 @@ typedef struct
 {
    char *key,
         *val;
-   long  ctx;
+   long  flags;
    u32   klen; // key length limit: 4 GB
 } kv_item;
 
@@ -917,3 +923,4 @@ u32 zlib_cmp(char *src, u32 *crc, u32 srclen, char *dst, u32 dstlen, int gzip);
 // ============================================================================
 // End of Header file
 // ============================================================================
+#endif

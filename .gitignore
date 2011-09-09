@@ -1,0 +1,11 @@
+gwan
+*.pid
+trace
+readme.txt
+license.txt
+libraries/*.so
+
+#logs
+logs/*
+127.0.0.1_8080/#127.0.0.1/_logs
+127.0.0.1_8080/#127.0.0.1/logs/*
