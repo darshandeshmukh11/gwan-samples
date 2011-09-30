@@ -4,6 +4,7 @@ trace
 readme.txt
 license.txt
 libraries/*.so
+a.out
 
 #logs
 logs/*

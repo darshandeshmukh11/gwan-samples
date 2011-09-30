@@ -1,7 +1,5 @@
 //in response to http://forum.gwan.com/index.php?p=/discussion/402/key-value-store-with-in-place-editing-and-appending-for-huge-value/#Item_1
 
-//Might have a memory leak. Proceed with caution.
-
 #include "gwan.h"
 #include "stdlib.h"
 
@@ -15,9 +13,10 @@ typedef struct {
   kv_t *payments;
 } User;
 
-static void user_free(void *value)
+static void user_free(User *value)
 {  
-  kv_free(((User*)value)->payments);
+  kv_free(value->payments);
+  free(value->payments);
   free(value);
 }
 
