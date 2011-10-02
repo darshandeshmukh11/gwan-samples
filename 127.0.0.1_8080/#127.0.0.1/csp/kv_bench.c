@@ -301,6 +301,14 @@ int main(int argc, char **argv)
 
    //puts("SQLite");
    
+   sqlite3_stmt *stmt_insert = 0,
+                *stmt_ordersearch = 0,
+                *stmt_randsearch = 0,
+                *stmt_delete = 0,
+                *stmt_randinsert = 0,
+                *stmt_randupdate = 0,
+                *stmt_deleteall = 0;
+   
    // -------------------------------------------------------------------------
    // a loop is necessary to reduce the very highly variable results
    // -------------------------------------------------------------------------
@@ -313,9 +321,6 @@ int main(int argc, char **argv)
       keyval = array;
       start = getus();
       i = NBR_ITEMS;
-      
-      
-      sqlite3_stmt *stmt_insert = 0;
 
       while(i--)
       {        
@@ -352,7 +357,6 @@ int main(int argc, char **argv)
       start = getus();
       i = NBR_ITEMS;
       
-      static sqlite3_stmt *stmt_ordersearch = 0;
       while(i--)
       {
          //sql_Exec(db, "SELECT * FROM numb WHERE key = '%s';", keyval);
@@ -373,7 +377,6 @@ int main(int argc, char **argv)
       start = getus();
       i = NBR_ITEMS;
       
-      static sqlite3_stmt *stmt_randsearch = 0;
       while(i--)
       {
          keyval = array + (ITEM_SIZE * (sw_rand(&rnd) % NBR_ITEMS));
@@ -394,7 +397,7 @@ int main(int argc, char **argv)
       start = getus();
       i = NBR_ITEMS;
       
-      static sqlite3_stmt *stmt_delete = 0;
+      
       while(i--)
       {
         //fixed syntax error -- 'DELETE * FROM' -> "DELETE FROM"
@@ -417,8 +420,7 @@ int main(int argc, char **argv)
       keyval = array;
       start = getus();
       i = NBR_ITEMS;
-      
-      static sqlite3_stmt *stmt_randinsert = 0;
+    
       while(i--)
       {
          keyval = array + (ITEM_SIZE * (sw_rand(&rnd) % NBR_ITEMS));
@@ -441,7 +443,6 @@ int main(int argc, char **argv)
       start = getus();
       i = NBR_ITEMS;
       
-      static sqlite3_stmt *stmt_randupdate = 0;
       while(i--)
       {
          keyval = array + (ITEM_SIZE * (sw_rand(&rnd) % NBR_ITEMS));
@@ -462,7 +463,6 @@ int main(int argc, char **argv)
       start = getus();
       i = NBR_ITEMS;
       
-      static sqlite3_stmt *stmt_deleteall = 0;
       while(i--)
       {
          //sql_Exec(db, "DELETE FROM numb;");
@@ -478,6 +478,14 @@ int main(int argc, char **argv)
    // -------------------------------------------------------------------------
    // done with database   
    // -------------------------------------------------------------------------
+   sqlite3_finalize(stmt_insert);
+   sqlite3_finalize(stmt_ordersearch);
+   sqlite3_finalize(stmt_randsearch);
+   sqlite3_finalize(stmt_delete);
+   sqlite3_finalize(stmt_randinsert);
+   sqlite3_finalize(stmt_randupdate);
+   sqlite3_finalize(stmt_deleteall);
+   
    sqlite3_close(db);
 
    // -------------------------------------------------------------------------
