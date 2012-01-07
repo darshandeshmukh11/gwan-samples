@@ -1,3 +1,4 @@
+#if !(__GNUC__ || __INTEL_COMPILER)
 
 #ifndef _VARARGS_H
 #define _VARARGS_H
@@ -11,4 +12,6 @@
 # define va_start(v,l)	__builtin_va_start(v,l)
 
 #endif // _VARARGS_H
+
+#endif
 

@@ -1,3 +1,4 @@
+#if !(__GNUC__ || __INTEL_COMPILER)
 
 #ifndef _STDARG_H
 #define _STDARG_H
@@ -13,4 +14,6 @@ typedef va_list __gnuc_va_list;
 # define _VA_LIST_DEFINED
 
 #endif // _STDARG_H
+
+#endif
 

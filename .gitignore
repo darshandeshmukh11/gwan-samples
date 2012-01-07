@@ -5,6 +5,7 @@ readme.txt
 license.txt
 libraries/*.so
 a.out
+*.log
 
 #logs
 logs/*

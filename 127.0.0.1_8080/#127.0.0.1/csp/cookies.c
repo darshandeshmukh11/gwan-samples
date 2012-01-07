@@ -1,6 +1,7 @@
 //in response to http://forum.gwan.com/index.php?p=/discussion/comment/3465/#Comment_3465
 
 #include "gwan.h"
+#include "string.h"
 
 //where 'cookies' = "key1=value1; key2=value2;"
 kv_t parse_cookies(char *cookies)
@@ -30,7 +31,7 @@ kv_t parse_cookies(char *cookies)
 }
 
 int main(int argc, char *argv[])
-{
+{  
   //http_t *http = get_env(argv, HTTP_HEADERS, 0);
   //kv_t cookies_store = parse_cookies(http->h_cookies);
 
@@ -44,5 +45,5 @@ int main(int argc, char *argv[])
   
   kv_free(&cookies_store);
 
-  return 200;
+  return 204;
 }

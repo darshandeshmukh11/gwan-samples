@@ -67,6 +67,15 @@ char *xbuf_cat     (xbuf_t *ctx, char *str);
 // format 'a la sprintf()' into the buffer
 char *xbuf_xcat    (xbuf_t *ctx, char *src, ...);
 
+typedef struct
+{
+   char *ptr;  // data buffer
+   u32   len;  // data length
+} strtab_t;
+
+// format 'a la writev()' into the buffer
+char *xbuf_vcat    (xbuf_t *ctx, const strtab_t *array, int nbr);
+
 // sort text entries separated by 'separator' in the buffer
 void  xbuf_sort    (xbuf_t *ctx, char separator, s32 remove_duplicates);
 
@@ -74,10 +83,10 @@ void  xbuf_sort    (xbuf_t *ctx, char separator, s32 remove_duplicates);
 s32   xbuf_findstr (xbuf_t *ctx, char *str);
 
 // replace all occurences of the 'old' string by the 'new' string in the buffer
-s32   xbuf_repl    (xbuf_t *ctx, char *old, char *new);
+s32   xbuf_repl    (xbuf_t *ctx, char *old, char *newstr);
 
 // same as above but using a range in the buffer
-s32   xbuf_replfrto(xbuf_t *ctx, char *beg, char *end, char *old, char *new);
+s32   xbuf_replfrto(xbuf_t *ctx, char *beg, char *end, char *old, char *newstr);
 
 // truncate buffer at byte position using pointer 'ptr'
 void  xbuf_truncptr(xbuf_t *ctx, char *ptr);

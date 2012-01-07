@@ -1,3 +1,4 @@
+#if !(__GNUC__ || __INTEL_COMPILER)
 
 #ifndef _FLOAT_H_
 #define _FLOAT_H_
@@ -56,7 +57,9 @@
 # endif
 
 // FPU control word for round to zero mode (real to integer conversion)
-static u32 __int_fpu_control = 0x27f;
+//static u32 __int_fpu_control = 0x27f;
 
 #endif // _FLOAT_H_
+
+#endif
 

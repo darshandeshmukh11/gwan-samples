@@ -14,6 +14,8 @@ typedef unsigned short int u16;
 typedef   signed int       s32;
 typedef unsigned int       u32;
 
+typedef unsigned long      ulong;
+
 # ifdef _WIN32
 typedef          __int64   s64;
 typedef unsigned __int64   u64;
@@ -32,3 +34,4 @@ typedef long long unsigned int u64;
 // ============================================================================
 // End of Source Code
 // ============================================================================
+

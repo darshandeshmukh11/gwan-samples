@@ -1,11 +1,11 @@
 //forum example to demonstrate G-WAN's API
 //http://forum.gwan.com/index.php?p=/discussion/470/forum-software-written-in-c/
 
-//include required headers------------------------------------------------------
+//include required headers
 #include "gwan.h"
-//------------------------------------------------------------------------------
+#include "stdlib.h"
 
-//data structures---------------------------------------------------------------
+//data structures
 typedef struct {
   u64 id;
   xbuf_t body;
@@ -16,14 +16,13 @@ typedef struct {
   xbuf_t title;
   kv_t posts;
 } Thread;
-//------------------------------------------------------------------------------
 
-//HTML templates----------------------------------------------------------------
+//HTML templates
 static char 
   base_tpl[] = 
     "<html><body>"
     "<head><title>G-WAN Forum</title></head>"
-    "<h1><a href='/csp/forum_simple/'>G-WAN Forum</a></h1><hr/>"
+    "<h1><a href='/csp/forum_simple.c'>G-WAN Forum</a></h1><hr/>"
     "<form method='POST'><!--form--></form>"
     "<!--tpl-->"
     "</body></html>",
@@ -37,64 +36,60 @@ static char
     "<input name='act' type='hidden' value='t' />" //new thread
     "<input type='text' name='title' value='Thread title'></input>"
     "<input type='submit' value='Create thread'/>";
-//------------------------------------------------------------------------------
 
-//template rendering functions--------------------------------------------------
-int list_posts(kv_item *item, xbuf_t *reply)
+//template rendering functions
+int list_posts(const kv_item *item, const void *reply)
 {
   Post *post = (Post*)item->val;
-  
+    
   //using HTML comments
   const char post_li[] = "<li><!--contents--></li>";
   
   char *pos = xbuf_findstr(reply, "<!--tpl-->");
-  if (pos) xbuf_insert(reply, pos, sizeof(post_li), post_li);
+  if (pos) xbuf_insert(reply, pos, sizeof(post_li) - 1, post_li);
   
   xbuf_repl(reply, "<!--contents-->", post->body.ptr);
     
   return 1; //continue searching
 }
 
-int list_threads(kv_item *item, xbuf_t *reply)
+int list_threads(const kv_item *item, const void *reply)
 {
   Thread *thread = (Thread*)item->val;
   
   xbuf_t thread_li;
   xbuf_init(&thread_li);
+  {  
+    //using sprintf-like formatting
+    xbuf_xcat(&thread_li, 
+      "<li><a href='/csp/forum_simple.c/act=t/id=%llu'>%s</a> (%lu)</li>",
+      thread->id, thread->title.ptr, thread->posts.nbr_items
+    );
+    
+    char *pos = xbuf_findstr(reply, "<!--tpl-->");
+    
+    if (pos) xbuf_insert(reply, pos, thread_li.len, thread_li.ptr);
+  }
   
-  //using sprintf-like formatting
-  xbuf_xcat(&thread_li, 
-    "<li>"
-    "<a href='/csp/forum_simple/act=t/id=%llu'>%s</a> (%lu)"
-    "</li>",
-    thread->id, thread->title.ptr, thread->posts.nbr_items
-  );
-  
-  char *pos = xbuf_findstr(reply, "<!--tpl-->");
-  if (pos) xbuf_insert(reply, pos, thread_li.len, thread_li.ptr);
-
   xbuf_free(&thread_li);
-
+  
   return 1;
 }
-//------------------------------------------------------------------------------
 
 int main(int argc, char *argv[])
 {
-  //initialize Key-Value store--------------------------------------------------
+  //initialize Key-Value store
   kv_t **vhost_ptr = get_env(argv, US_VHOST_DATA, 0), //persistent pointer
        *forum_store = 0; //convenience pointer (var->m instead of (*var)->m)
   
-  if (vhost_ptr && !*vhost_ptr)
-  {
-    *vhost_ptr = malloc(sizeof(kv_t));
+  if (vhost_ptr && !*vhost_ptr) {
+    *vhost_ptr = malloc(sizeof(*forum_store));
     
     //threads and posts stored here
     kv_init(*vhost_ptr, "forum_store", 1024, 0, 0, 0);
   } forum_store = *vhost_ptr;
-  //----------------------------------------------------------------------------
   
-  //setup GET and POST variables------------------------------------------------
+  //setup GET and POST variables
   char *act = "", *id = "", *title = "", *body = "";
   get_arg("act=",   &act,   argc, argv); //action ('t' or 'p')
   get_arg("id=",    &id,    argc, argv); //id of thread
@@ -104,20 +99,18 @@ int main(int argc, char *argv[])
   char *end = 0;
   u64 int_id = strtoll(id, &end, 10); //string to integer
   if (*end) int_id = 0; //require a numeric ID
-  //----------------------------------------------------------------------------
   
-  //response sent to browser is stored here-------------------------------------
+  //response sent to browser is stored here
   //templates are rendered into this buffer
   xbuf_t *reply = get_reply(argv);
   xbuf_cat(reply, base_tpl); //set base template
-  //----------------------------------------------------------------------------
   
   //HTTP state of a connection
   http_t *http = get_env(argv, HTTP_HEADERS, 0);
   
   redirect: //simulate HTTP, <meta>, or JavaScript redirect without page reload
   
-  //choose what to do based on the value of 'act'-------------------------------
+  //choose what to do based on the value of 'act
   switch (*act)
   {
     //regarding a post
@@ -125,14 +118,13 @@ int main(int argc, char *argv[])
     {
       switch (http->h_method) //GET or POST
       {
-        //new post--------------------------------------------------------------
+        //new post
         case HTTP_POST:
         {
           //get the thread to which this post belongs
           Thread *thread = (Thread*)kv_get(forum_store, &int_id, sizeof(int_id));
           
-          if (!thread) //thread not found
-          {
+          if (!thread) { //thread not found
             xbuf_repl(reply, "<!--tpl-->", http_error(404));
             return 404;
           }
@@ -161,7 +153,6 @@ int main(int argc, char *argv[])
           
           goto redirect;
         } break;
-        //----------------------------------------------------------------------
       }
     } break;
     
@@ -170,13 +161,12 @@ int main(int argc, char *argv[])
     {
       switch (http->h_method)
       {
-        //view a thread---------------------------------------------------------
+        //view a thread
         case HTTP_GET:
         {
           Thread *thread = (Thread*)kv_get(forum_store, &int_id, sizeof(int_id));
           
-          if (!thread)
-          {
+          if (!thread) {
             xbuf_repl(reply, "<!--tpl-->", http_error(404));
             return 404;
           }
@@ -187,11 +177,10 @@ int main(int argc, char *argv[])
           xbuf_repl(reply, "<!--id-->", id);
           
           //for each post, render its template and insert it into reply
-          kv_do(&thread->posts, 0, 0, &list_posts, reply);
+          kv_do(&thread->posts, 0, 0, list_posts, reply);
         } break;
-        //----------------------------------------------------------------------
         
-        //create a thread-------------------------------------------------------
+        //create a thread
         case HTTP_POST:
         {
           Thread *thread = calloc(1, sizeof(*thread));
@@ -215,20 +204,17 @@ int main(int argc, char *argv[])
           
           goto redirect;
         } break;
-        //----------------------------------------------------------------------
       }
     } break;
     
-    //list all threads----------------------------------------------------------
+    //list all threads
     default:
     {      
       xbuf_repl(reply, "<!--form-->", thread_form);
       
-      kv_do(forum_store, 0, 0, &list_threads, reply);
+      kv_do(forum_store, 0, 0, list_threads, reply);
     } break;
-    //--------------------------------------------------------------------------
   }
-  //----------------------------------------------------------------------------
   
   return 200; //HTTP code 200, no errors, headers generated automatically
 }

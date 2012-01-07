@@ -2,7 +2,7 @@
 // ab.c is a wrapper for Apache Benchmark. You have to install ab first, see:
 //   http://gwan.ch/faq#benchmarks
 // ----------------------------------------------------------------------------
-// For max speed, build and run ab.c: gcc ab.c -O1 -o abc -lpthread (and ./abc)
+// For max speed, build and run ab.c: gcc ab.c -O2 -o abc -lpthread (and ./abc)
 // You can also edit & play this program in one step this way: ./gwan -r ab.c
 // ============================================================================
 // Benchmark framework to test the (free) G-WAN Web App. Server http://gwan.ch/
@@ -49,7 +49,11 @@
 
 //#define IBM_APACHEBENCH // the classic, made better by Zeus' author
 //#define HP_HTTPERF // HTTPerf, from HP, less practical than ApacheBench
-#define LIGHTY_WEIGHTTP //http://redmine.lighttpd.net/projects/weighttp/wiki
+#define LIGHTY_WEIGHTTP // Lighttpd's test, faster than AB (same interface)
+                        // but a loooong warm-up and no intermediate output
+                        // nor any statistics...
+                        //http://redmine.lighttpd.net/projects/weighttp/wiki
+//#define TRACK_ERRORS    // makes things slower but signals HTTP errors
 
 //      Modify the IP ADDRESS & PORT below to match your server values:
 
@@ -68,15 +72,21 @@
 
 #define FROM       0 // range to cover (1 - 1,000 concurrent clients)
 #define TO      1000 // range to cover (1 - 1,000 concurrent clients)
-#define STEP     200 // number of concurrency steps we actually skip
+#define STEP      10 // number of concurrency steps we actually skip
 #define ITER      10 // number of iterations (3: worse, average, best)
 #define KEEP_ALIVES  // comment this for no-HTTP Keep-Alive tests
 #ifdef KEEP_ALIVES
-// #ifdef IBM_APACHEBENCH
    #define KEEP_ALIVES_STR "-k"
  #else
    #define KEEP_ALIVES_STR ""
-// #endif 
+#endif 
+
+#ifdef IBM_APACHEBENCH
+# define CLI_NAME "ab"
+#elif defined HP_HTTPERF
+# define CLI_NAME "httperf"
+#elif defined LIGHTY_WEIGHTTP
+# define CLI_NAME "weighttp"
 #endif 
 //       Select (uncomment) the URL that you want to test:
 //
@@ -189,7 +199,40 @@
 //          If you are logged as 'root' in a terminal, type (instant effect):
 //              ulimit -HSn 200000
 //
-//          sudo gedit /etc/sysctl.conf
+/*          sudo gedit /etc/sysctl.conf
+
+                # "Performance Scalability of a Multi-Core Web Server", Nov 2007
+                # Bryan Veal and Annie Foong, Intel Corporation, Page 4/10
+                fs.file-max = 5000000
+                net.core.netdev_max_backlog = 400000
+                net.core.optmem_max = 10000000
+                net.core.rmem_default = 10000000
+                net.core.rmem_max = 10000000
+                net.core.somaxconn = 100000
+                net.core.wmem_default = 10000000
+                net.core.wmem_max = 10000000
+                net.ipv4.conf.all.rp_filter = 1
+                net.ipv4.conf.default.rp_filter = 1
+                net.ipv4.tcp_congestion_control = bic
+                net.ipv4.tcp_ecn = 0
+                net.ipv4.tcp_max syn backlog = 12000
+                net.ipv4.tcp_max tw buckets = 2000000
+                net.ipv4.tcp_mem = 30000000 30000000 30000000
+                net.ipv4.tcp_rmem = 30000000 30000000 30000000
+                net.ipv4.tcp_sack = 1
+                net.ipv4.tcp_syncookies = 0
+                net.ipv4.tcp_timestamps = 1
+                net.ipv4.tcp_wmem = 30000000 30000000 30000000    
+                
+                # optionally, avoid TIME_WAIT states on localhost no-HTTP Keep-Alive tests:
+                #    "error: connect() failed: Cannot assign requested address (99)"
+                # On Linux, the 2MSL time is hardcoded to 60 seconds in /include/net/tcp.h:
+                # #define TCP_TIMEWAIT_LEN (60*HZ)
+                # The option below lets you reduce TIME_WAITs by several orders of magnitude
+                # but this option is for benchmarks, NOT for production servers (NAT issues)
+                net.ipv4.tcp_tw_recycle = 1
+*/
+//              # other settings found from various sources
 //              fs.file-max = 200000
 //              net.ipv4.ip_local_port_range = 1024 65535
 //              net.ipv4.ip_forward = 0
@@ -267,7 +310,9 @@
 // 2.1.20 changes: added support for HTTPerf as an alternative to ApacheBench.
 // 2.4.20 changes: detect & report open (ab.txt output) file permission errors.
 // 2.9.26 changes: collects and logs all server's workers CPU and memory usage
-//                 (use: "ab gwan", or "ab nginx" to enable this feature)
+//                 (use: "ab gwan", or "ab nginx" to enable this feature).
+// 2.10.2 changes: prints sum of user/kernel CPU time, signals weighttp errors,
+//                 replaces "pidof " with "ps -C" for not found single-process.
 // ----------------------------------------------------------------------------
 // This program is left in the public domain.
 // ============================================================================
@@ -304,16 +349,16 @@ typedef unsigned long long u64;
 # define FMTU64 "llu"
 
 volatile int ab_done = 0;
+
+// ----------------------------------------------------------------------------
+// for any reason, 'pidof' fails to list gwan with one process: ./gwan (no -d)
+// so we use 'ps -C' as a fallback...
+// ----------------------------------------------------------------------------
+#ifdef USE_PIDOF 
 // ----------------------------------------------------------------------------
 // invoke the 'pidof' command and fetch its output, if any:
 // "pidof gwan"
 // 13937 13936
-//
-// Just in case you don't have 'pidof':
-// "ps -C gwan" is equivalent, but the output requires a bit more work:
-//   PID TTY          TIME CMD
-// 13936 ?        00:00:00 gwan
-// 13937 ?        00:00:00 gwan
 // ----------------------------------------------------------------------------
 int pidsof(char *process_name, u32 **pids)
 {
@@ -350,6 +395,55 @@ int pidsof(char *process_name, u32 **pids)
    *pids = (u32*)realloc(*pids, sizeof(u32) * nbr_pids);
    return nbr_pids;
 }
+#else
+// ----------------------------------------------------------------------------
+// If you don't have 'pidof', or if it does not work as expected:
+// "ps -C gwan" is equivalent, but the output requires a bit more work:
+//   PID TTY          TIME CMD
+// 13936 ?        00:00:00 gwan
+// 13937 ?        00:00:00 gwan
+// ----------------------------------------------------------------------------
+int pidsof(char *process_name, u32 **pids)
+{
+   if(!process_name || !*process_name || !pids)
+      return 0;
+
+   char str[4096] = "ps -C ";
+   strcat(str, process_name);
+   
+   FILE *f = popen(str, "r");
+   if(!f)
+      return 0;
+   *str = 0;
+   int len = fread(str, 1, sizeof(str) - 1, f);
+   pclose(f);
+   if(!len)
+      return 0;
+      
+   u32 *n = *pids = (u32*)malloc(sizeof(u32) * 512), nbr_pids = 0, end = 1;
+   char *p = str, *e;
+   while(*p != '\n') p++; // pass " PID TTY  TIME CMD" header
+   if(*p) p++;
+   while(*p)
+   {
+      e = p;
+      while(*e && *e == ' ')
+         e++;
+      while(*e && *e != ' ')
+         e++;
+      if(*e == ' ')
+         *e = 0;
+
+      n[nbr_pids++] = atoi(p);
+      p = e + 1;
+      while(*p != '\n') p++; // pass " ?  00:00:00 gwan" rest of line
+      if(*p) p++;
+   }
+
+   *pids = (u32*)realloc(*pids, sizeof(u32) * nbr_pids);
+   return nbr_pids;
+}
+#endif
 // ----------------------------------------------------------------------------
 // wait 'n' milliseconds
 // ----------------------------------------------------------------------------
@@ -746,7 +840,7 @@ int main(int argc, char *argv[])
          sprintf(buf, "RAM: %.02f/%.02f (Free/Total, in GB)\n", 
                  free / (1024. * 1024.), total / (1024. * 1024.));
         fputs(buf, fo);
-         puts(buf);
+         printf("%s", buf);
       }
    }
    {
@@ -767,12 +861,12 @@ int main(int argc, char *argv[])
       sprintf(buf, "%s %s v%s %s\n%s\n\n", 
               u.sysname, u.machine, u.version, u.release, name);
      fputs(buf, fo);
-      puts(buf);
+      printf("%s", buf);
    }  
    
    // since servers like Nginx use processes (instead of threads like G-WAN)
    // to implement workers, we have to find all of them
-   icpu_t *old_cpu = 0;
+   icpu_t *old_cpu = 0, *beg_cpu = 0;
    int nbr_pids = 0;
    u32 *pids = 0;
    
@@ -780,21 +874,22 @@ int main(int argc, char *argv[])
    {
       sprintf(buf, "> Collecting CPU/RAM stats for server '%s'", argv[1]);
       fputs(buf, fo);
-      puts(buf);
+      printf("%s", buf);
       char str[80];
       nbr_pids = pidsof(argv[1], &pids);
       if(nbr_pids)
-         old_cpu = (icpu_t*)calloc(nbr_pids, sizeof(icpu_t));
+         old_cpu = (icpu_t*)calloc(nbr_pids, sizeof(icpu_t)),
+         beg_cpu = (icpu_t*)calloc(nbr_pids, sizeof(icpu_t));
       sprintf(buf, ": %u process(es)\n", nbr_pids);
       fputs(buf, fo);
-      puts(buf);
+      printf("%s", buf);
       int i = nbr_pids;
       while(i--)
       {
          float mem = (float)pid_ram(pids[i]) / (1024. * 1024.);
          sprintf(buf, "pid[%d]:%u RAM: %.02f MB\n", i, pids[i], mem);
          fputs(buf, fo);
-         puts(buf);
+         printf("%s", buf);
       }
  
       /* THIS COMMAND LINE WORKS IN A TERMINAL BUT FAILS HERE... (tip?)
@@ -807,11 +902,26 @@ int main(int argc, char *argv[])
       }*/
      fputs(" ", fo);
       puts(" ");
+      
+      // get the start count of CPU jiffies for this server
+      res_args_t res_args = {cpu_buf, nbr_pids, pids, beg_cpu};
+      th_resources(&res_args);
    }
    
-   fprintf(fo, "\nab -n 1000000 -c [%u-%u step:%d] -S -d -t 1 %s "
+   fprintf(fo, "\n" CLI_NAME " -n 1000000 -c [%u-%u step:%d] "
+#ifdef IBM_APACHEBENCH
+               "-S -d "
+#endif               
+#ifdef LIGHTY_WEIGHTTP
+               "-t %u "
+#endif               
+               "%s "
                "\"http://" IP ":" PORT URL "\"\n\n", 
-               FROM, TO, STEP, KEEP_ALIVES_STR);
+               FROM, TO, STEP, 
+#ifdef LIGHTY_WEIGHTTP
+               nbr_cores, 
+#endif               
+               KEEP_ALIVES_STR);
       
 #endif
    fputs("  Client           Requests per second               CPU\n" 
@@ -881,10 +991,12 @@ int main(int argc, char *argv[])
 #endif                    
                , i?i:1, i?i:1);
 #elif defined LIGHTY_WEIGHTTP
-      sprintf(str, "weighttp -n 100000 -c %d -t 1 %s "
+      sprintf(str, "weighttp -n 1000000 -c %d -t %u %s "
+                   "-H \"Accept-Encoding: gzip\" "
                    "\"http://" IP ":" PORT
                    URL "\""
-                   , i ? i : 1, KEEP_ALIVES_STR);
+                   // Weighttp rejects concurrency inferior to thread count:
+                   , i > nbr_cores ? i : nbr_cores, nbr_cores, KEEP_ALIVES_STR);
 #endif
       
       for(max_rps = 0, ave_rps = 0, min_rps = 0xffff0, j = 0; j < ITER; j++)
@@ -991,7 +1103,6 @@ int main(int argc, char *argv[])
 #elif defined HP_HTTPERF
             char *p = strstr(buf, "Reply status:");
             if(p) // "Reply status: 1xx=0 2xx=1000000 3xx=0 4xx=0 5xx=0"
-
             {
                char *n;
                p += sizeof("Reply status: 1xx=") - 1;
@@ -1022,7 +1133,7 @@ int main(int argc, char *argv[])
                   goto end;
                }
             }
-            no_errors:
+no_errors:
             // Reply rate [replies/s]: min 163943.9 avg 166237.2 max 167482.3
             // stddev 1060.4 (12 samples)
             p = strstr(buf, "Reply rate");
@@ -1051,46 +1162,61 @@ int main(int argc, char *argv[])
             // exhausts the [1 - 65,535] port space. There is no obvious
             // solution other than using several HTTPerf workers OR waiting
             /* a bit between each shot to let the system evacuate the bloat:
-             if(!strcmp(IP, "127.0.0.1"))
-             {
-             int nop = 60;
-             printf("waiting:"); fflush(0);
-             while(nop--)
-             {
-             printf("."); fflush(0);
-             sleep(1);
-             }
-             printf("\n"); fflush(0);
-             }*/
-
-            goto round_done;
-#elif defined LIGHTY_WEIGHTTP
-            char *p = strstr(buf, "microsec,"); //microsec, 12345 req/s
-            
-            if (p)
+            if(!strcmp(IP, "127.0.0.1"))
             {
-              p += sizeof("microsec,");
-              
-              nbr = atoi(p);
-              //weighttp only shows one RPS value
-              //min_rps = atoi(p);
-              //ave_rps = min_rps;
-              //max_rps = min_rps;
-              
-            }
+               int nop = 60;
+               printf("waiting:"); fflush(0);
+               while(nop--)
+               {
+                  printf("."); fflush(0);
+                  sleep(1);
+               }
+               printf("\n"); fflush(0);
+            }*/
+            goto round_done;
             
+#elif defined LIGHTY_WEIGHTTP
+            char *p = strstr(buf, "microsec,"); // "microsec, 12345 req/s"
+            if(p)
+            {
+               p += sizeof("microsec,");
+               nbr = atoi(p);
+              
+#ifdef TRACK_ERRORS
+               p = strstr(p, "succeeded,"); // "succeeded, 0 failed, 0 errored"
+               u32 nbr_errors = 0;
+               if(p)
+               {
+                  p += sizeof("succeeded,");
+                  nbr_errors = atoi(p);
+               }
+               if(nbr_errors)
+               {
+                  printf("* Non-2xx responses:%d\n", nbr);
+                  fprintf(fo, "* Non-2xx responses:%d\n", nbr);
+                  
+                  // dump the server reply on stderr for examination
+                  http_req(URL);
+                  goto end;
+               }
+#endif               
+            }
             //goto round_done;
 #endif
-         }
+         } // if(nbr_pids)
+         
          if(max_rps < nbr)
             max_rps = nbr;
          if(min_rps > nbr)
             min_rps = nbr;
+         
          ave_rps += nbr;
-      }
+         
+      } //for(max_rps = 0, ave_rps = 0, min_rps = 0xffff0, j = 0; j < ITER; j++)
+      
       ave_rps /= ITER;
 #ifndef IBM_APACHEBENCH
-      round_done:
+round_done:
 #endif
       tmin_rps += min_rps;
       tmax_rps += max_rps;
@@ -1108,9 +1234,9 @@ int main(int argc, char *argv[])
          return 1;
       }
       fflush(fo); // in case we interrupt the test
-   }
+   } // for(i = FROM; i <= TO; i += STEP)
 
-   end: st = time(NULL) - st;
+end: st = time(NULL) - st;
 
    strcpy(buf, "---------------------------------------------------------"
                "----------------------");
@@ -1126,10 +1252,28 @@ int main(int argc, char *argv[])
    fputs("\n", fo);
    
    strcpy(buf, "---------------------------------------------------------"
-               "----------------------\n\n");
+               "----------------------\n");
    puts(buf);
    fputs(buf, fo);
 
+   if(argv[1]) // any server process name provided on command line?
+   {
+      // print the total count of CPU jiffies for this server
+      u64 user = 0, kernel = 0;
+      int i = nbr_pids;
+      while(i--)
+          user   += (old_cpu[i].user - beg_cpu[i].user),
+          kernel += (old_cpu[i].system - beg_cpu[i].system);
+          
+      sprintf(buf, "CPU jiffies:   user:%"FMTU64"   kernel:%"FMTU64
+                   "   total:%"FMTU64,
+                   user, kernel, user + kernel);
+      puts(buf);
+      fputs(buf, fo);
+   }
+
+  fputs(" ", fo);
+   puts(" ");
    fclose(fo);
    return 0;
 }

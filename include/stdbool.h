@@ -1,3 +1,4 @@
+#if !(__GNUC__ || __INTEL_COMPILER)
 
 #ifndef _STDBOOL_H
 #define _STDBOOL_H
@@ -8,4 +9,6 @@
 # define false	0
 
 #endif // _STDBOOL_H
+
+#endif
 

@@ -139,7 +139,7 @@ static void sql_stmt_prepare(sqlite3_stmt **stmt, ...)
     
     if (stmt && *stmt == 0)
     {
-      int errcode = sqlite3_prepare_v2(db_global, sql, -1, stmt, 0);
+      sqlite3_prepare_v2(db_global, sql, -1, stmt, 0);
     }
     
     sqlite3_clear_bindings(*stmt);
@@ -213,7 +213,7 @@ int main(int argc, char **argv)
    if(!array)
       return 500; // out of memory
    
-   u64 start = getus();
+   start = getus();
    int i = 0;
    while(i < NBR_ITEMS + 4) // +2 items for Tokyo Cabinet (no "0" record...)
    {
