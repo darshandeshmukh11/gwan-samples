@@ -2,7 +2,7 @@
 //compare with kv_bench.c from the official G-WAN distribution
 
 // ----------------------------------------------------------------------------
-#define TEST_SQLITE       // usually pre-installed on Linux
+//#define TEST_SQLITE       // usually pre-installed on Linux
 #define TEST_GWAN_KV      // available in G-WAN 2.7+
 //#define TEST_TC           // install Tokyo Cabinet 32-bit to test it
 //#define TEST_TC_FIXED     // install Tokyo Cabinet 32-bit to test it
@@ -187,7 +187,7 @@ int main(int argc, char **argv)
    // this new timeout defined here will be effective only the SECOND time
    // this script is executed: timeouts are setup BEFORE the script is run)
    // -------------------------------------------------------------------------
-   u32 *pscripttmo = 0; get_env(argv, SCRIPT_TMO, (char**)&pscripttmo);
+   u32 *pscripttmo = 0; get_env(argv, SCRIPT_TMO);
    if(pscripttmo) // before you dereference a pointer...
      *pscripttmo = 20 * 1000; // 20 seconds
    

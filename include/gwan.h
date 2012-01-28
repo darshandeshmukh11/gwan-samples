@@ -93,25 +93,23 @@ void log_err(char *argv[], const char *msg);
 // value, like for HTTP_CODE, DOWNLOAD_SPEED, US_HANDLER_DATA, US_VHOST_DATA,
 // or US_HANDLER_STATES):
 
-// int session = get_env(argv, SESSION_ID, 0); // easy cases
-// char *www   = get_env(argv, WWW_ROOT, 0);
+// int session = get_env(argv, SESSION_ID); // easy cases
+// char *www   = get_env(argv, WWW_ROOT);
 
-// int *pHttp_code = 0;
-// get_env(argv, HTTP_CODE, (char**)&pHttp_code);
+// int **pHttp_code = get_env(argv, HTTP_CODE);
 // if(pHttp_code)       // if we got a pointer on the value,
 //   *pHttp_code = 200; // then change the value (to 200:OK)
 
-// int *pDownload_speed = 0;
-// get_env(argv, DOWNLOAD_SPEED, (char**)&pDownload_speed);
+// int **pDownload_speed = 0;
+// get_env(argv, DOWNLOAD_SPEED);
 // if(pDownload_speed)     // if we got a pointer on the value,
 //   *pDownload_speed = 2; // then change the value (to 2,048 bytes per sec)
 
-// void **pVhost_persistent_ptr = 0;
-// get_env(argv, US_VHOST_DATA, &pVhost_persistent_ptr);
+// void **pVhost_persistent_ptr = get_env(argv, US_VHOST_DATA);
 // if(pVhost_persistent_ptr) // if we got a pointer on the value, change it
 //   *pVhost_persistent_ptr = strdup("persistent data");
 //
-u64 get_env(char *argv[], int name, char **inval);
+u64 get_env(char *argv[], int name);
 
 enum HTTP_Method
 {
@@ -264,10 +262,13 @@ enum HTTP_Env
    LOG_ROOT,        // char  *LOG_ROOT;       // the log files folder
    HLD_ROOT,        // char  *HLD_ROOT;       // the handlers folder
    FNT_ROOT,        // char  *FNT_ROOT;       // the fonts folder
-   DOWNLOAD_SPEED,  // int   *DOWNLOAD_SPEED; // minimum allowed transfer rate
+   DOWNLOAD_SPEED,  // int   *DOWNLOAD_SPEED; // min CLIENT READ rate (default:1)
+   MIN_READ_RATE = DOWNLOAD_SPEED,            // 
    READ_XBUF,       // xbuf_t*READ_XBUF;      // HTTP request is stored there
    SCRIPT_TMO,      // u32   *SCRIPT_TMO;     // time-out in milliseconds
    KALIVE_TMO,      // u32   *KALIVE_TMO;     // HTTP Keep-Alive time-out (ms)
+   REQUEST_TMO,     // u32   *REQUEST_TMO;    // time-out in milliseconds
+   MIN_SEND_SPEED,  // u32   *MIN_SEND_SPD;   // min CLIENT SEND speed, bytes/sec
    // -------------------------------------------------------------------------
    // Server performance counters
    // -------------------------------------------------------------------------
@@ -394,6 +395,7 @@ enum KV_OPTIONS
 };
 
 // a key-value store
+
 typedef struct
 {
    long  root;
@@ -419,7 +421,7 @@ typedef void(*kv_delfn_t)(void *value);
 typedef void(*kv_recfn_t)(void *value);
 
 // create a KV store (all arguments can be NULL but 'store')
-void kv_init(kv_t *store, char *name, int max_nbr_items, u32 flags,
+void kv_init(kv_t *store, char *name, long max_nbr_items, u32 flags,
              kv_delfn_t delfn, kv_recfn_t recfn);
 
 // add/update a value associated to a key
@@ -657,16 +659,15 @@ typedef struct { u32 x,y,X,Y; } rect_t;
 
 typedef struct
 {
-  u8    *bmp,     // bitmap pixels
-        *p;       // current cursor position, as a pointer
-  int    bbp,     // bits per pixel
-         pen,     // current drawing color index
-         bgd;     // background color index ('int' required: can be -1)
-  rect_t rect;    // used for clipping, windows, etc.
-  u32    flags,   // alignment, type of chart, whatever you need
-         w, h,    // bitmap width and height
-         x, y;    // current cursor position, as row/column coordinates
-} bmp_t;          // (used when the 'p' pointer above is null)
+  u8    *bmp,      // bitmap pixels
+        *p;        // current cursor position, as a pointer
+  int    bbp,      // bits per pixel
+         pen, bgd; // current drawing color index / background color index
+  rect_t rect;     // used for clipping, windows, etc.
+  u32    flags,    // alignment, type of chart, whatever you need
+         w, h,     // bitmap width and height
+         x, y;     // current cursor position, as row/column coordinates
+} bmp_t;           // (used when the 'p' pointer above is null)
 
 // use powers of two for all the flags so we can combine them in 'bmp_t.flags'
 

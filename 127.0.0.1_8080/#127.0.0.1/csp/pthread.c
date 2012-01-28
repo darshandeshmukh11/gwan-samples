@@ -1,6 +1,7 @@
 //demonstrates the dangers of thread-unsafe code
 //http://forum.gwan.com/index.php?p=/discussion/comment/3952/#Comment_3952
 
+#define _POSIX_C_SOURCE 199309L
 #include "gwan.h"
 #include "sys/syscall.h"
 #include "pthread.h"
@@ -49,5 +50,5 @@ int main(int argc, char *argv[])
   
   slept = 0;
   
-  return 200;
+  return 204;
 }

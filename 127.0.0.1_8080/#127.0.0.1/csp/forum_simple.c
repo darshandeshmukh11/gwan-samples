@@ -79,7 +79,7 @@ int list_threads(const kv_item *item, const void *reply)
 int main(int argc, char *argv[])
 {
   //initialize Key-Value store
-  kv_t **vhost_ptr = get_env(argv, US_VHOST_DATA, 0), //persistent pointer
+  kv_t **vhost_ptr = get_env(argv, US_VHOST_DATA), //persistent pointer
        *forum_store = 0; //convenience pointer (var->m instead of (*var)->m)
   
   if (vhost_ptr && !*vhost_ptr) {
@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
   xbuf_cat(reply, base_tpl); //set base template
   
   //HTTP state of a connection
-  http_t *http = get_env(argv, HTTP_HEADERS, 0);
+  http_t *http = get_env(argv, HTTP_HEADERS);
   
   redirect: //simulate HTTP, <meta>, or JavaScript redirect without page reload
   

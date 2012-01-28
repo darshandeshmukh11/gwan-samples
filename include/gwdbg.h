@@ -182,27 +182,27 @@ extern void xbuf_sort(xbuf_t *ctx, char separator, s32 remove_duplicates)
    p_xbuf_sort(ctx, separator, remove_duplicates);
 }
 
-extern s32 xbuf_findstr(xbuf_t *ctx, char *str)
+extern char *xbuf_findstr(xbuf_t *ctx, char *str)
 {
-   s32(*p_xbuf_findstr)(xbuf_t *ctx, char *str) =
-   (s32(*)(xbuf_t *ctx, char *str))
+   long(*p_xbuf_findstr)(xbuf_t *ctx, char *str) =
+   (long(*)(xbuf_t *ctx, char *str))
    _xbuf_findstr;
    return p_xbuf_findstr(ctx, str);
 }
 
-extern s32 xbuf_repl(xbuf_t *ctx, char *oldstr, char *newstr)
+extern char *xbuf_repl(xbuf_t *ctx, char *oldstr, char *newstr)
 {
-   s32(*p_xbuf_repl)(xbuf_t *ctx, char *oldstr, char *newstr) =
-   (s32(*)(xbuf_t *ctx, char *oldstr, char *newstr))
+   char *(*p_xbuf_repl)(xbuf_t *ctx, char *oldstr, char *newstr) =
+   (char *(*)(xbuf_t *ctx, char *oldstr, char *newstr))
    _xbuf_repl;
    return p_xbuf_repl(ctx, oldstr, newstr);
 }
 
-extern s32 xbuf_replfrto(xbuf_t *ctx, char *beg, char *end, char *oldstr,
+extern char *xbuf_replfrto(xbuf_t *ctx, char *beg, char *end, char *oldstr,
        char *newstr)
 {
-   s32(*p_xbuf_replfrto)(xbuf_t *ctx, char *beg, char *end, char *oldstr, char *newstr) =
-   (s32(*)(xbuf_t *ctx, char *beg, char *end, char *old, char *newstr))
+   char *(*p_xbuf_replfrto)(xbuf_t *ctx, char *beg, char *end, char *oldstr, char *newstr) =
+   (char *(*)(xbuf_t *ctx, char *beg, char *end, char *old, char *newstr))
    _xbuf_replfrto;
    return p_xbuf_replfrto(ctx, beg, end, oldstr, newstr);
 }
@@ -507,12 +507,12 @@ extern void set_reply(char *argv[], char *buf, u32 len, u32 status)
    p_set_reply(argv, buf, len, status);
 }
 
-extern u64 get_env(char *argv[], int name, char **inval)
+extern u64 get_env(char *argv[], int name)
 {
-   u64(*p_get_env)(char *argv[], int name, char **inval) =
-   (u64(*)(char *argv[], int name, char **inval))
+   u64(*p_get_env)(char *argv[], int name) =
+   (u64(*)(char *argv[], int name))
    _get_env;
-   return p_get_env(argv, name, inval);
+   return p_get_env(argv, name);
 }
 
 extern char *http_status(int code)
@@ -705,6 +705,14 @@ extern size_t rfc2time(char *s)
    _rfc2time;
    return p_rfc2time(s);
 }
+
+//#define time2rfc _time2rfc
+
+//#define time2rfc(t, buf) _time2rfc(t, buf)
+
+//char*(*p_time2rfc)(time_t t, char *buf);
+//#define time2rfc (p_time2rfc)_time2rfc
+//p_time2rfc time2rfc = (p_time2rfc)_time2rfc;
 
 extern char *time2rfc(time_t t, char *buf)
 {
