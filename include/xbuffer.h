@@ -115,6 +115,7 @@ s32   xbuf_insert  (xbuf_t *ctx, char *pos, s32 len, char *bytes);
 s32   xbuf_http    (xbuf_t *ctx, s32 code, char *body);
 
 // send an HTTP request to a server, save the reply and return the HTTP status
+// ('headers' is adding headers, not overwriting any existing header)
 s32   xbuf_frurl   (xbuf_t *ctx, char *host, u32 port, u32 method, char *uri, 
                     u32 mstimeout, char *headers);
 

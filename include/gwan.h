@@ -257,6 +257,7 @@ enum HTTP_Env
    SERVER_PORT,     // int    SERVER_PORT;    // 80 (443, 8080, etc.)
    SERVER_DATE,     // char  *SERVER_DATE;    // "Tue, 06 Jan 2009 06:12:20 GMT"
    SERVER_PROTOCOL, // int    SERVER_PROTOCOL // ((HTTP_major*1000)+HTTP_minor)
+   VHOST_ROOT,      // char  *VHOST_ROOT;     // the (virtual) host root folder
    WWW_ROOT,        // char  *WWW_ROOT;       // the HTML pages root folder
    CSP_ROOT,        // char  *CSP_ROOT;       // the CSP .C files folder
    LOG_ROOT,        // char  *LOG_ROOT;       // the log files folder
@@ -269,6 +270,10 @@ enum HTTP_Env
    KALIVE_TMO,      // u32   *KALIVE_TMO;     // HTTP Keep-Alive time-out (ms)
    REQUEST_TMO,     // u32   *REQUEST_TMO;    // time-out in milliseconds
    MIN_SEND_SPEED,  // u32   *MIN_SEND_SPD;   // min CLIENT SEND speed, bytes/sec
+   NBR_CPUS,        // int    NBR_CPUS;       // total of available CPUs
+   NBR_CORES,       // int    NBR_CORES;      // total of available CPU Cores
+   NBR_WORKERS,     // int    NBR_WORKERS;    // total of server workers
+   CUR_WORKER,      // int    CUR_WORKER;     // worker thread number: 1,2,3...
    // -------------------------------------------------------------------------
    // Server performance counters
    // -------------------------------------------------------------------------
@@ -774,6 +779,7 @@ typedef struct attach_s
 
 typedef struct email_s
 {
+
    char       *text;   // must be first
    const char *tag;    // *tag = "@"; to detect an attachment structure
    attach_t   *attach; // array of attachments

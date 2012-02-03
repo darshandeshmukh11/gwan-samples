@@ -1,6 +1,9 @@
 //in response to http://forum.gwan.com/index.php?p=/discussion/comment/3465/#Comment_3465
 
+#define _POSIX_C_SOURCE 200112L
+
 #include "gwan.h"
+#include "stdio.h"
 #include "string.h"
 
 //where 'cookies' = "key1=value1; key2=value2;"
