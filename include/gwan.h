@@ -42,7 +42,9 @@
 // Garbage collector
 // Handlers
 // Cache
+// Comet
 // Server report
+// Comet Streaming
 // JSON (de-)serialization
 // HTML escaping
 // Formatting
@@ -194,6 +196,29 @@ enum AUTH_Type
    AUTH_x509=5 // can be used on the top of AUTH_BASIC/AUTH_DIGEST/AUTH_SRP
 };
 
+enum // used by get_env(argv, DEFAULT_LANG);
+{
+   LG_ADA = 1,
+   LG_ASM,
+   LG_BASIC,
+   LG_C,
+   LG_COBOL,
+   LG_CPP,
+   LG_D,
+   LG_FORTRAN,
+   LG_GO,
+   LG_JAVA,
+   LG_MERCURY,
+   LG_MODULA,
+   LG_OBJC,
+   LG_OBJCPP,
+   LG_PASCAL,
+   LG_PHP,
+   LG_PLI,
+   LG_SCHEME,
+   LG_VHDL
+};
+
 // the HTTP state of a connection
 // (see the served_from.c sample for how to use it)
 typedef struct
@@ -251,7 +276,7 @@ enum HTTP_Env
    REMOTE_USER,     // char  *REMOTE_USER     // "Pierre"
    CLIENT_SOCKET,   // int    CLIENT_SOCKET   // 1032 (-1 if invalid/closed)
    USER_AGENT,      // char  *USER_AGENT;     // "Mozilla ... Firefox"
-   SERVER_SOFTWARE, // char  *SERVER_SOFTWARE // "G-WAN/1.0.2"
+   SERVER_SOFTWARE, // char  *SERVER_SOFTWARE // "G-WAN"
    SERVER_NAME,     // char  *SERVER_NAME;    // "domain.com"
    SERVER_ADDR,     // char  *SERVER_ADDR;    // "192.168.10.14"
    SERVER_PORT,     // int    SERVER_PORT;    // 80 (443, 8080, etc.)
@@ -274,6 +299,9 @@ enum HTTP_Env
    NBR_CORES,       // int    NBR_CORES;      // total of available CPU Cores
    NBR_WORKERS,     // int    NBR_WORKERS;    // total of server workers
    CUR_WORKER,      // int    CUR_WORKER;     // worker thread number: 1,2,3...
+   REPLY_MIME_TYPE, // char  *REPLY_MIME_TYPE;// set script's reply MIME type
+   DEFAULT_LANG,    // u8     DEFAULT_LANG;   // LG_D: /?hello.d => /?hello
+   QUERY_CHAR,      // u8     QUERY_CHAR;     // replace '?' by [ -_.!~*'() ]
    // -------------------------------------------------------------------------
    // Server performance counters
    // -------------------------------------------------------------------------
@@ -416,7 +444,7 @@ typedef struct
    char *key,
         *val;
    long  flags;
-   u32   klen; // key length limit: 4 GB
+   u32   klen; // key length limit: 4 GB (value length has no limit)
 } kv_item;
 
 // delfn is an user-defined function to free memory allocated for KV records
@@ -494,11 +522,16 @@ enum HANDLER_ACT
 // Cache
 // ----------------------------------------------------------------------------
 // create/update a cache entry ('file' MUST be imaginary if 'buf' is not NULL)
-// example: cacheadd(argv, "/tool/counter", buf, 1024, 200, 60); // expire:60sec
-// example: cacheadd(argv, "/archives/doc_1.pdf", 0, 0, 200, 0); // never expire
+// cacheadd(argv, "/tool/counter", buf, 1024, ".json", 200, 60); // expire:60sec
+// cacheadd(argv, "/archives/doc_1.pdf", 0, 0, 0, 200, 0); // never expire
 //                             ('file' MUST exist if 'buf' is NULL)
 // if(expire == 0) never expires
 // if(expire >  0) expires in 'expires' seconds
+//
+// 'mime' is the FILE EXTENSION like ".gif" (not the "image/gif" MIME type)
+//        This is useful when a resource name does not match the MIME type:
+//
+//        cacheadd(argv, "/tool/counter", buf, 1024, ".json", 200, 60);
 //
 // 'code' is the HTTP status code that the server will send to clients
 //
@@ -506,8 +539,8 @@ enum HANDLER_ACT
 //
 // see the cache1.c, cache2.c, etc. samples.
 
-long cacheadd(char *argv[], char *file, char *buf, u32 buflen, u32 code,
-              u32 expire);
+long cacheadd(char *argv[], char *file, char *buf, u32 buflen, char *mime, 
+              u32 code, u32 expire);
 
 // delete a cached entry
 // example: cachedel(argv, "/tool/counter");
@@ -516,19 +549,41 @@ void cachedel(char *argv[], char *file);
 
 // search a cached entry (and, if found, return the requested details)
 // examples:
+//    char *mime = 0;
 //    u32 len = 0, code = 0, date = 0, exp = 0;
-//    char *entry = cacheget(argv, "tool/counter", &len, &code, &date, &exp);
-//    char *entry = cacheget(argv, "tool/counter", &len, 0, 0, 0);
-//    char *entry = cacheget(argv, "tool/counter", 0, 0, 0, 0);
+//    char *entry = cacheget(argv, "tool/counter", &len, &mime, &code, &date, &exp);
+//    char *entry = cacheget(argv, "tool/counter", &len, &mime, 0, 0, 0);
+//    char *entry = cacheget(argv, "tool/counter", 0, 0, 0, 0, 0);
 // return 0:not found, else pointer on cached entry
 //
 // NOTES: a cached entry can disappear at any moment IF IT EXPIRES. In that
 //        case, you MUST MAKE A COPY of the returned buffer to use it.
 //        DON'T work 'inplace' in the provided buffer, rather make a copy
 //        and call cacheadd() to update a previously cached entry.
+//
+//        The returned 'mime' argument, if any, is the ".gif" file extension
+//        and not the "image/gif" MIME type. This is useful when a resource
+//        name does not match the MIME type:
+//
+//        cacheadd(argv, "/tool/counter", buf, 1024, ".json", 200, 60);
 
-char *cacheget(char *argv[], char *uri, u32 *buflen, u32 *code,
+char *cacheget(char *argv[], char *uri, u32 *buflen, char **mime, u32 *code,
                u32 *modified, u32 *expire);
+
+// ============================================================================
+// Comet Streaming
+// ----------------------------------------------------------------------------
+// see the comet.c example for how to setup a feed and to add subscribers
+//
+
+typedef int (*make_data_t)(char *argv[]);
+typedef int (*push_data_t)(char *argv[], xbuf_t *reply);
+typedef void(*free_data_t)(char *argv[]);
+
+int push_list_add(char *argv[], char *feed_name,
+                  make_data_t make_fn, u32 make_freq,
+                  push_data_t push_fn, u32 push_freq,
+                  free_data_t free_fn);
 
 // ============================================================================
 // JSON (de-)serialization
@@ -538,7 +593,7 @@ char *cacheget(char *argv[], char *uri, u32 *buflen, u32 *code,
 
 enum JSN_TYPE
 {
-   jsn_FALSE = 0, jsn_TRUE, jsn_NULL, jsn_NUMBER, jsn_STRING,
+   jsn_FALSE = 0, jsn_TRUE, jsn_NULL, jsn_INTEGER, jsn_REAL, jsn_STRING,
    jsn_NODE, jsn_ARRAY
 };
 
@@ -551,7 +606,8 @@ typedef struct jsn_s
    int           type;   // node's value type (see JSN_TYPE above)
    union {
    char         *string; // value 'type' == jsn_STRING
-   double        number; // value 'type' == jsn_NUMBER
+   s64           integer;// value 'type' == jsn_INTEGER
+   double        real;   // value 'type' == jsn_REAL
    };
    u64           x;      // context
    long          y;      // context
@@ -562,10 +618,12 @@ typedef struct jsn_s
 #define jsn_add_false(node, name)     jsn_add(node, name, jsn_FALSE,       0)
 #define jsn_add_true(node, name)      jsn_add(node, name, jsn_TRUE,        0)
 #define jsn_add_bool(node, name, n)   jsn_add(node, name, (n != 0),        0)
-#define jsn_add_number(node, name, n) jsn_add(node, name, jsn_NUMBER,      n)
 #define jsn_add_string(node, name, s) jsn_add(node, name, jsn_STRING, (u64)s)
 #define jsn_add_node(node, name)      jsn_add(node, name, jsn_NODE,        0)
 #define jsn_add_array(node, name, n)  jsn_add(node, name, jsn_ARRAY,  (u64)n)
+#define jsn_add_number(node, name, n) ( (n != (s64)n) ? \
+                                      jsn_add(node, name, jsn_REAL, n) : \
+                                      jsn_add(node, name, jsn_INTEGER, n) )
 
 // take JSON text as input and return a jsn_t tree
 // (call jsn_free() when you are done with the jsn_t tree)

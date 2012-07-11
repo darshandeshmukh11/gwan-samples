@@ -45,6 +45,10 @@ typedef void(*kv_delfn_t)(void *value);
 typedef void(*kv_recfn_t)(void *value);
 typedef int(*kv_proc_t)(const kv_item *item, const void *user_defined_ctx);
 
+typedef int (*make_data_t)(char *argv[]);
+typedef int (*push_data_t)(char *argv[], xbuf_t *reply);
+typedef void(*free_data_t)(char *argv[]);
+
 extern void xbuf_frfile(xbuf_t *ctx, char *szFile)
 {
    void(*p_xbuf_frfile)(xbuf_t *ctx, char *szFile) =
@@ -184,8 +188,8 @@ extern void xbuf_sort(xbuf_t *ctx, char separator, s32 remove_duplicates)
 
 extern char *xbuf_findstr(xbuf_t *ctx, char *str)
 {
-   long(*p_xbuf_findstr)(xbuf_t *ctx, char *str) =
-   (long(*)(xbuf_t *ctx, char *str))
+   char *(*p_xbuf_findstr)(xbuf_t *ctx, char *str) =
+   (char *(*)(xbuf_t *ctx, char *str))
    _xbuf_findstr;
    return p_xbuf_findstr(ctx, str);
 }
@@ -563,15 +567,15 @@ extern void log_err(char *argv[], const char *msg)
    p_log_err(argv, msg);
 }
 
-extern long cacheadd(char *argv[], char *file, char *buf, u32 buflen, u32 code,
-         u32 expire)
+extern long cacheadd(char *argv[], char *file, char *buf, u32 buflen, 
+                     char *mime, u32 code, u32 expire)
 {
    long(*p_cacheadd)(char *argv[], char *file, char *buf, u32 buflen,
-            u32 code, u32 expire) =
-   (long(*)(char *argv[], char *file, char *buf, u32 buflen,
+                     char *mime, u32 code, u32 expire) =
+   (long(*)(char *argv[], char *file, char *buf, u32 buflen, char *mime,
             u32 code, u32 expire))
    _cacheadd;
-   return p_cacheadd(argv, file, buf, buflen, code, expire);
+   return p_cacheadd(argv, file, buf, buflen, mime, code, expire);
 }
 
 extern void cachedel(char *argv[], char *file)
@@ -582,15 +586,30 @@ extern void cachedel(char *argv[], char *file)
    p_cachedel(argv, file);
 }
 
-extern char *cacheget(char *argv[], char *uri, u32 *buflen, u32 *code,
-         u32 *modified, u32 *expire)
+extern char *cacheget(char *argv[], char *uri, u32 *buflen, char **mime, 
+                      u32 *code, u32 *modified, u32 *expire)
 {
-   char*(*p_cacheget)(char *argv[], char *uri, u32 *buflen, u32 *code,
-            u32 *modified, u32 *expire) =
-   (char*(*)(char *argv[], char *uri, u32 *buflen, u32 *code,
+   char*(*p_cacheget)(char *argv[], char *uri, u32 *buflen, char **mime, 
+          u32 *code, u32 *modified, u32 *expire) =
+   (char*(*)(char *argv[], char *uri, u32 *buflen, char **mime, u32 *code,
             u32 *modified, u32 *expire))
    _cacheget;
-   return p_cacheget(argv, uri, buflen, code, modified, expire);
+   return p_cacheget(argv, uri, buflen, mime, code, modified, expire);
+}
+
+extern int push_list_add(char *argv[], char *feed_name,
+              make_data_t make_fn, u32 make_freq, push_data_t push_fn, 
+              u32 push_freq, free_data_t free_fn)
+{
+   int (*p_push_list_add)(char *argv[], char *feed_name, make_data_t make_fn, 
+           u32 make_freq, push_data_t push_fn, u32 push_freq, 
+           free_data_t free_fn) = 
+   (int (*)(char *argv[], char *feed_name, make_data_t make_fn, 
+           u32 make_freq, push_data_t push_fn, u32 push_freq, 
+           free_data_t free_fn))
+   _push_list_add;
+   return p_push_list_add(argv, feed_name, make_fn, make_freq, push_fn, 
+                          push_freq, free_fn);
 }
 
 extern u32 url_encode(u8 *dst, u8 *src, u32 maxdstlen)
