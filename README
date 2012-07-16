@@ -1,9 +1,3 @@
-Sample code I have written for Global-WAN. (G-WAN)
+Sample code I have written for G-WAN. (Global-WAN)
 
-See: http://www.gwan.com
-
-# Notes
-* You must add -std=c99 to GCC's specs file for G-WAN to compile in C99 mode (http://gcc.gnu.org/onlinedocs/gcc-4.6.2/gcc/Spec-Files.html)
-My cc1 line looks like this:
-  cc1:
-  %(cc1_cpu) %{profile:-p} -std=c99
+See: http://www.gwan.com/
