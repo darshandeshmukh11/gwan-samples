@@ -1,0 +1,16 @@
+This is an NSAPI browser plugin for G-WAN.
+
+install
+-------
+1) Set PATH_TO_GWAN in gwan-browser-plugin.c to your G-WAN directory. 
+A listener on port 8080 is assumed.
+2) make && make install
+3) Open gwan-browser-plugin.html in Firefox, wait a few seconds for G-WAN to 
+load, and refresh the page.
+
+usage
+-----
+Place the following tag in an HTML document and G-WAN will run when the page is 
+loaded for the first time: <embed type='application/gwan' hidden />
+
+G-WAN will be shutdown when the browser is closed.

@@ -1,9 +1,10 @@
 gwan
+*.o
+*.so
 *.pid
 trace
 readme.txt
 license.txt
-libraries/*.so
 a.out
 *.log
 
