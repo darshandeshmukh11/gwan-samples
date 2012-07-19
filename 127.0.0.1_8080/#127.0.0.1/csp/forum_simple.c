@@ -22,7 +22,7 @@ static char
   base_tpl[] = 
     "<html><body>"
     "<head><title>G-WAN Forum</title></head>"
-    "<h1><a href='/csp/forum_simple.c'>G-WAN Forum</a></h1><hr/>"
+    "<h1><a href='/?forum_simple'>G-WAN Forum</a></h1><hr/>"
     "<form method='POST'><!--form--></form>"
     "<!--tpl-->"
     "</body></html>",
@@ -38,12 +38,13 @@ static char
     "<input type='submit' value='Create thread'/>";
 
 //template rendering functions
-int list_posts(const kv_item *item, const void *reply)
+int list_posts(const kv_item *item, const void *reply_)
 {
+  xbuf_t *reply = (xbuf_t*)reply_;
   Post *post = (Post*)item->val;
     
   //using HTML comments
-  const char post_li[] = "<li><!--contents--></li>";
+  static char post_li[] = "<li><!--contents--></li>";
   
   char *pos = xbuf_findstr(reply, "<!--tpl-->");
   if (pos) xbuf_insert(reply, pos, sizeof(post_li) - 1, post_li);
@@ -53,8 +54,9 @@ int list_posts(const kv_item *item, const void *reply)
   return 1; //continue searching
 }
 
-int list_threads(const kv_item *item, const void *reply)
+int list_threads(const kv_item *item, const void *reply_)
 {
+  xbuf_t *reply = (xbuf_t*)reply_;
   Thread *thread = (Thread*)item->val;
   
   xbuf_t thread_li;
@@ -62,7 +64,7 @@ int list_threads(const kv_item *item, const void *reply)
   {  
     //using sprintf-like formatting
     xbuf_xcat(&thread_li, 
-      "<li><a href='/csp/forum_simple.c/act=t/id=%llu'>%s</a> (%lu)</li>",
+      "<li><a href='/?forum_simple/act=t/id=%llu'>%s</a> (%lu)</li>",
       thread->id, thread->title.ptr, thread->posts.nbr_items
     );
     
@@ -79,7 +81,7 @@ int list_threads(const kv_item *item, const void *reply)
 int main(int argc, char *argv[])
 {
   //initialize Key-Value store
-  kv_t **vhost_ptr = get_env(argv, US_VHOST_DATA), //persistent pointer
+  kv_t **vhost_ptr = (void*)get_env(argv, US_VHOST_DATA), //persistent pointer
        *forum_store = 0; //convenience pointer (var->m instead of (*var)->m)
   
   if (vhost_ptr && !*vhost_ptr) {
@@ -106,7 +108,7 @@ int main(int argc, char *argv[])
   xbuf_cat(reply, base_tpl); //set base template
   
   //HTTP state of a connection
-  http_t *http = get_env(argv, HTTP_HEADERS);
+  http_t *http = (void*)get_env(argv, HTTP_HEADERS);
   
   redirect: //simulate HTTP, <meta>, or JavaScript redirect without page reload
   
@@ -122,7 +124,7 @@ int main(int argc, char *argv[])
         case HTTP_POST:
         {
           //get the thread to which this post belongs
-          Thread *thread = (Thread*)kv_get(forum_store, &int_id, sizeof(int_id));
+          Thread *thread = (void*)kv_get(forum_store, (void*)&int_id, sizeof(int_id));
           
           if (!thread) { //thread not found
             xbuf_repl(reply, "<!--tpl-->", http_error(404));
@@ -141,9 +143,9 @@ int main(int argc, char *argv[])
           
           //add post to thread
           kv_add(&thread->posts, &(kv_item) {
-            .key = &post->id,
+            .key = (void*)&post->id,
             .klen = sizeof(post->id),
-            .val = post,
+            .val = (void*)post,
             .flags = 0,
           });
           
@@ -164,7 +166,7 @@ int main(int argc, char *argv[])
         //view a thread
         case HTTP_GET:
         {
-          Thread *thread = (Thread*)kv_get(forum_store, &int_id, sizeof(int_id));
+          Thread *thread = (Thread*)kv_get(forum_store, (void*)&int_id, sizeof(int_id));
           
           if (!thread) {
             xbuf_repl(reply, "<!--tpl-->", http_error(404));
@@ -193,14 +195,14 @@ int main(int argc, char *argv[])
           
           //add thread to KV store
           kv_add(forum_store, &(kv_item) {
-            .key = &thread->id,
+            .key = (void*)&thread->id,
             .klen = sizeof(thread->id),
-            .val = thread,
+            .val = (void*)thread,
             .flags = 0,
           });
           
           http->h_method = HTTP_GET;
-          *act= "";
+          act= "";
           
           goto redirect;
         } break;

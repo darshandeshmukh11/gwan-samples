@@ -4,6 +4,7 @@
 
 // http://forum.gwan.com/index.php?p=/discussion/comment/1407/#Comment_1407
 // http://devedge-temp.mozilla.org/library/manuals/2002/plugin/1.0/npp_api.html#1004145
+// https://developer.mozilla.org/En/Gecko_Plugin_API_Reference:Scripting_plugins
 
 #include <stdlib.h>
 #include <string.h>

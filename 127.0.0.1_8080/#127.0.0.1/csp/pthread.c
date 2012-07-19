@@ -1,11 +1,13 @@
 //demonstrates the dangers of thread-unsafe code
 //http://forum.gwan.com/index.php?p=/discussion/comment/3952/#Comment_3952
 
-#define _POSIX_C_SOURCE 199309L
 #include "gwan.h"
+#include "stdio.h"
 #include "sys/syscall.h"
 #include "pthread.h"
 #include "sys/time.h"
+#include <sys/types.h>
+#include "unistd.h"
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
@@ -24,7 +26,7 @@ static int slept = 0;
 
 void *servlet_main(void *name)
 {
-  printf("%i: setting myfriend = %s\n", syscall(SYS_gettid), (char*)name);
+  printf("%zu: setting myfriend = %s\n", syscall(SYS_gettid), (char*)name);
   
   myfriend = (char*)name;
   
@@ -35,7 +37,9 @@ void *servlet_main(void *name)
     tsleep(1);
   }
   
-  printf("%i: myfriend is actually = %s\n", syscall(SYS_gettid), myfriend);
+  printf("%zu: myfriend is actually = %s\n", syscall(SYS_gettid), myfriend);
+  
+  return 0;
 }
 
 int main(int argc, char *argv[])

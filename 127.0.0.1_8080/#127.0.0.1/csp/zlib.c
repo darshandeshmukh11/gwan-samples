@@ -1,6 +1,7 @@
 //in response to http://forum.gwan.com/index.php?p=/discussion/514/zlib_cmp-customizing-logs/p1
 
 #include "gwan.h"
+#include "stdio.h"
 
 int main(int argc, char *argv[])
 {

@@ -2,7 +2,7 @@ This is an NPAPI browser plugin for G-WAN.
 
 install
 -------
-1) Set PATH_TO_GWAN in gwan-browser-plugin.c to your G-WAN directory. 
+1) Set PATH_TO_GWAN in gwan-browser-plugin.c to point to your G-WAN executable.
 A listener on port 8080 is assumed.
 2) make && make install
 3) Open gwan-browser-plugin.html in Firefox, wait a few seconds for G-WAN to 
