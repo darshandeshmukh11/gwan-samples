@@ -26,7 +26,7 @@ static int slept = 0;
 
 void *servlet_main(void *name)
 {
-  printf("%zu: setting myfriend = %s\n", syscall(SYS_gettid), (char*)name);
+  printf("%lu: setting myfriend = %s\n", syscall(SYS_gettid), (char*)name);
   
   myfriend = (char*)name;
   
@@ -37,7 +37,7 @@ void *servlet_main(void *name)
     tsleep(1);
   }
   
-  printf("%zu: myfriend is actually = %s\n", syscall(SYS_gettid), myfriend);
+  printf("%lu: myfriend is actually = %s\n", syscall(SYS_gettid), myfriend);
   
   return 0;
 }
